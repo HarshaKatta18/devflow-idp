@@ -1,36 +1,20 @@
-name: Deploy Node App
+- name: Deploy to EC2
+  run: |
+    # Copy app to EC2
+    scp -o StrictHostKeyChecking=no -i key.pem -r templates/nodejs-api/app ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~
 
-on:
-  push:
-    branches:
-      - main
+    # Connect and run app
+    ssh -o StrictHostKeyChecking=no -i key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+    
+    cd ~/app
 
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
+    source ~/.bashrc
+    nvm use 16
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+    npm install
 
-      - name: Setup SSH
-        run: |
-          echo "${{ secrets.EC2_KEY }}" > key.pem
-          chmod 400 key.pem
+    pkill node || true
 
-      - name: Deploy to EC2
-        run: |
-          ssh -o StrictHostKeyChecking=no -i key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-          
-          cd ~/app
+    nohup node index.js > app.log 2>&1 &
 
-          source ~/.bashrc
-          nvm use 16
-
-          npm install
-
-          pkill node || true
-
-          nohup node index.js > app.log 2>&1 &
-          
-          EOF
+    EOF
