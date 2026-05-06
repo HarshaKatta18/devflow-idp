@@ -7,24 +7,24 @@
 <body>
 
 <h1>🚀 DevFlow Platform</h1>
-<p>Select a template to deploy</p>
+<p>Deploy your application in one click</p>
 
-<div class="catalog">
+<div class="form-container">
 
-  <div class="card">
-    <h2>Node.js API</h2>
-    <button onclick="deploy('nodejs')">Deploy</button>
-  </div>
+  <label>Choose Template:</label>
+  <select id="template">
+    <option value="nodejs">Node.js API</option>
+    <option value="static">Static Website</option>
+    <option value="worker">Background Worker</option>
+  </select>
 
-  <div class="card">
-    <h2>Static Website</h2>
-    <button onclick="deploy('static')">Deploy</button>
-  </div>
+  <label>GitHub Repository URL:</label>
+  <input id="repo" type="text" placeholder="https://github.com/user/repo">
 
-  <div class="card">
-    <h2>Background Worker</h2>
-    <button onclick="deploy('worker')">Deploy</button>
-  </div>
+  <label>Application Name:</label>
+  <input id="appname" type="text" placeholder="my-app">
+
+  <button onclick="deploy()">🚀 Deploy</button>
 
 </div>
 
