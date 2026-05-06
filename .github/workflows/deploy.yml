@@ -6,7 +6,7 @@ on:
       - main
 
 env:
-  TEMPLATE: nodejs   # change this to: nodejs / static / worker
+  TEMPLATE: static   # change this to: nodejs / static / worker
 
 jobs:
   deploy:
