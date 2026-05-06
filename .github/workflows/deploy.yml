@@ -47,8 +47,8 @@ jobs:
 
           nohup node index.js > app.log 2>&1 &
 
-          # 🔥 SWITCH NGINX TO NODE
-          sudo bash -c 'cat > /etc/nginx/conf.d/app.conf <<EOL
+          # 🔥 SWITCH NGINX TO NODE (SAFE VERSION)
+          sudo bash -c "echo '
 server {
     listen 80 default_server;
     server_name _;
@@ -60,7 +60,7 @@ server {
         proxy_set_header X-Real-IP \$remote_addr;
     }
 }
-EOL'
+' > /etc/nginx/conf.d/app.conf"
 
           sudo systemctl restart nginx
           
