@@ -5,7 +5,7 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// Sample route
+// Root route
 app.get("/", (req, res) => {
   res.send("DevFlow Node.js API is running 🚀");
 });
@@ -19,9 +19,9 @@ app.get("/users", (req, res) => {
   res.json(users);
 });
 
-// Health check
+// Health check (IMPORTANT for monitoring)
 app.get("/health", (req, res) => {
-  res.json({ status: "OK" });
+  res.status(200).send("OK");
 });
 
 app.listen(PORT, () => {
