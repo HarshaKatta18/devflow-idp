@@ -1,128 +1,108 @@
 name: DevFlow Deployment
 
 on:
-push:
-branches:
-- main
-
-workflow_dispatch:
-inputs:
-template:
-description: "Template"
-required: true
-default: "nodejs"
-
-```
-  repo_url:
-    description: "GitHub repo URL"
-    required: true
-
-  app_name:
-    description: "App name"
-    required: true
-```
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      template:
+        description: "Template"
+        required: true
+        default: "nodejs"
+      repo_url:
+        description: "GitHub repo URL"
+        required: true
+      app_name:
+        description: "App name"
+        required: true
 
 jobs:
-deploy:
-runs-on: ubuntu-latest
+  deploy:
+    runs-on: ubuntu-latest
 
-```
-steps:
-  - name: Checkout code
-    uses: actions/checkout@v3
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-  - name: Setup SSH
-    run: |
-      echo "${{ secrets.EC2_KEY }}" > key.pem
-      chmod 400 key.pem
+      - name: Setup SSH
+        run: |
+          echo "${{ secrets.EC2_KEY }}" > key.pem
+          chmod 400 key.pem
 
-  # =========================
-  # 🚀 NODE.JS DEPLOYMENT
-  # =========================
-  - name: Deploy Node App
-    if: ${{ github.event.inputs.template == 'nodejs' }}
-    run: |
-      ssh -o StrictHostKeyChecking=no -i key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << EOF
+      # 🚀 NODE.JS DEPLOYMENT
+      - name: Deploy Node App
+        if: ${{ github.event.inputs.template == 'nodejs' }}
+        run: |
+          ssh -o StrictHostKeyChecking=no -i key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << EOF
+          REPO_URL="${{ github.event.inputs.repo_url }}"
+          APP_NAME="${{ github.event.inputs.app_name }}"
 
-      REPO_URL="${{ github.event.inputs.repo_url }}"
-      APP_NAME="${{ github.event.inputs.app_name }}"
+          cd ~
+          rm -rf \$APP_NAME
 
-      cd ~
-      rm -rf \$APP_NAME
+          git clone \$REPO_URL \$APP_NAME
+          cd \$APP_NAME || exit 1
 
-      git clone \$REPO_URL \$APP_NAME
-      cd \$APP_NAME || exit 1
+          source ~/.bashrc
+          nvm use 16
 
-      source ~/.bashrc
-      nvm use 16
+          npm install
+          pkill node || true
 
-      npm install
-      pkill node || true
+          if [ -f package.json ]; then
+            nohup npm start > app.log 2>&1 &
+          else
+            nohup node index.js > app.log 2>&1 &
+          fi
 
-      if [ -f package.json ]; then
-        nohup npm start > app.log 2>&1 &
-      else
-        nohup node index.js > app.log 2>&1 &
-      fi
+          sudo rm -f /etc/nginx/conf.d/app.conf
 
-      sudo rm -f /etc/nginx/conf.d/app.conf
+          echo "server {
+              listen 80;
+              server_name _;
+              location / {
+                  proxy_pass http://127.0.0.1:3000;
+              }
+          }" | sudo tee /etc/nginx/conf.d/app.conf
 
-      echo "server {
-          listen 80;
-          server_name _;
+          sudo systemctl restart nginx
+          EOF
 
-          location / {
-              proxy_pass http://127.0.0.1:3000;
-          }
-      }" | sudo tee /etc/nginx/conf.d/app.conf
+      # 🌐 STATIC DEPLOYMENT
+      - name: Deploy Static Website
+        if: ${{ github.event.inputs.template == 'static' }}
+        run: |
+          ssh -o StrictHostKeyChecking=no -i key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << EOF
+          REPO_URL="${{ github.event.inputs.repo_url }}"
+          APP_NAME="${{ github.event.inputs.app_name }}"
 
-      sudo systemctl restart nginx
+          cd ~
+          rm -rf \$APP_NAME
 
-      EOF
+          git clone \$REPO_URL \$APP_NAME
 
-  # =========================
-  # 🌐 STATIC DEPLOYMENT
-  # =========================
-  - name: Deploy Static Website
-    if: ${{ github.event.inputs.template == 'static' }}
-    run: |
-      ssh -o StrictHostKeyChecking=no -i key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << EOF
+          sudo rm -rf /usr/share/nginx/html/*
+          sudo cp -r \$APP_NAME/* /usr/share/nginx/html/
 
-      REPO_URL="${{ github.event.inputs.repo_url }}"
-      APP_NAME="${{ github.event.inputs.app_name }}"
+          sudo rm -f /etc/nginx/conf.d/app.conf
+          sudo systemctl restart nginx
+          EOF
 
-      cd ~
-      rm -rf \$APP_NAME
+      # ⚙️ WORKER DEPLOYMENT
+      - name: Deploy Worker
+        if: ${{ github.event.inputs.template == 'worker' }}
+        run: |
+          ssh -o StrictHostKeyChecking=no -i key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << EOF
+          REPO_URL="${{ github.event.inputs.repo_url }}"
+          APP_NAME="${{ github.event.inputs.app_name }}"
 
-      git clone \$REPO_URL \$APP_NAME
+          cd ~
+          rm -rf \$APP_NAME
 
-      sudo rm -rf /usr/share/nginx/html/*
-      sudo cp -r \$APP_NAME/* /usr/share/nginx/html/
+          git clone \$REPO_URL \$APP_NAME
+          cd \$APP_NAME
 
-      sudo rm -f /etc/nginx/conf.d/app.conf
-      sudo systemctl restart nginx
-
-      EOF
-
-  # =========================
-  # ⚙️ WORKER DEPLOYMENT
-  # =========================
-  - name: Deploy Worker
-    if: ${{ github.event.inputs.template == 'worker' }}
-    run: |
-      ssh -o StrictHostKeyChecking=no -i key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << EOF
-
-      REPO_URL="${{ github.event.inputs.repo_url }}"
-      APP_NAME="${{ github.event.inputs.app_name }}"
-
-      cd ~
-      rm -rf \$APP_NAME
-
-      git clone \$REPO_URL \$APP_NAME
-      cd \$APP_NAME
-
-      pkill -f worker.js || true
-      nohup node worker.js > worker.log 2>&1 &
-
-      EOF
-```
+          pkill -f worker.js || true
+          nohup node worker.js > worker.log 2>&1 &
+          EOF
