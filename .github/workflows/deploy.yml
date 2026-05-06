@@ -5,8 +5,15 @@ on:
     branches:
       - main
 
+  workflow_dispatch:
+    inputs:
+      template:
+        description: "Template to deploy"
+        required: true
+        default: "nodejs"
+
 env:
-  TEMPLATE: worker   # change this to: nodejs / static / worker
+  TEMPLATE: ${{ github.event.inputs.template }}
 
 jobs:
   deploy:
