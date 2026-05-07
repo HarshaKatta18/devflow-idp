@@ -79,24 +79,35 @@ jobs:
         if: ${{ github.event.inputs.template == 'static' }}
         run: |
           ssh -o StrictHostKeyChecking=no -i key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << EOF
-          set -e
-
           REPO_URL="${{ github.event.inputs.repo_url }}"
           APP_NAME="${{ github.event.inputs.app_name }}"
-
-          echo "Deploying Static App: \$APP_NAME"
 
           cd ~
           rm -rf \$APP_NAME
 
           git clone \$REPO_URL \$APP_NAME
 
+          # Copy static files
           sudo rm -rf /usr/share/nginx/html/*
           sudo cp -r \$APP_NAME/* /usr/share/nginx/html/
 
-          sudo systemctl restart nginx
+          # 🔥 STOP NODE APP (important)
+          pkill node || true
 
-          echo "Static app deployed successfully!"
+          # 🔥 RESET NGINX TO STATIC
+          echo "server {
+              listen 80;
+              server_name _;
+
+              root /usr/share/nginx/html;
+              index index.html;
+
+              location / {
+                  try_files \$uri \$uri/ =404;
+              }
+          }" | sudo tee /etc/nginx/conf.d/app.conf
+
+          sudo systemctl restart nginx
           EOF
 
       # ⚙️ BACKGROUND WORKER DEPLOYMENT
