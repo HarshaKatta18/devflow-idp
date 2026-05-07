@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout (for workflow context only)
+      - name: Checkout
         uses: actions/checkout@v3
 
       - name: Setup SSH Key
@@ -33,6 +33,11 @@ jobs:
           REPO_URL="${{ github.event.inputs.repo_url }}"
           APP_NAME="${{ github.event.inputs.app_name }}"
           TEMPLATE="${{ github.event.inputs.template }}"
+
+          # 🔥 Normalize template (IMPORTANT FIX)
+          if [ "$TEMPLATE" = "Node.js API" ]; then TEMPLATE="nodejs"; fi
+          if [ "$TEMPLATE" = "Static Website" ]; then TEMPLATE="static"; fi
+          if [ "$TEMPLATE" = "Background Worker" ]; then TEMPLATE="worker"; fi
 
           echo "🚀 Starting deployment..."
           echo "Template: $TEMPLATE"

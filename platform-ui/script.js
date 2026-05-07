@@ -1,7 +1,15 @@
 document.getElementById("deployBtn").addEventListener("click", async function () {
-  const template = document.getElementById("template").value;
-  const repo = document.getElementById("repo").value;
-  const appName = document.getElementById("appName").value;
+
+  // Get selected template
+  let template = document.getElementById("template").value;
+
+  // 🔥 Map UI values → workflow values
+  if (template === "Node.js API") template = "nodejs";
+  if (template === "Static Website") template = "static";
+  if (template === "Background Worker") template = "worker";
+
+  const repo = document.getElementById("repo").value.trim();
+  const appName = document.getElementById("appName").value.trim();
   const status = document.getElementById("status");
 
   // Validation
@@ -28,11 +36,19 @@ document.getElementById("deployBtn").addEventListener("click", async function ()
       })
     });
 
-    const data = await response.json();
+    let data = {};
+    try {
+      data = await response.json();
+    } catch {}
 
     if (response.ok) {
-      status.innerText = "✅ Deployment triggered! Check GitHub Actions.";
+      status.innerText = "✅ Deployment triggered successfully!";
       status.style.color = "#00ff9f";
+
+      setTimeout(() => {
+        status.innerText += "\n👉 Check GitHub Actions for progress";
+      }, 1500);
+
     } else {
       status.innerText = "❌ Deployment failed";
       status.style.color = "red";
