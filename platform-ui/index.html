@@ -1,34 +1,103 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
   <title>DevFlow Platform</title>
-  <link rel="stylesheet" href="style.css">
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(to right, #1f4037, #99f2c8);
+      text-align: center;
+      margin: 0;
+      padding: 0;
+      color: white;
+    }
+
+    .container {
+      margin-top: 100px;
+      background: rgba(0,0,0,0.6);
+      padding: 40px;
+      border-radius: 12px;
+      width: 50%;
+      margin-left: auto;
+      margin-right: auto;
+      box-shadow: 0px 10px 30px rgba(0,0,0,0.3);
+    }
+
+    h1 {
+      font-size: 36px;
+      margin-bottom: 10px;
+    }
+
+    p {
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+
+    .sub-text {
+      font-size: 14px;
+      opacity: 0.8;
+      margin-bottom: 25px;
+    }
+
+    input, select {
+      padding: 12px;
+      margin: 10px;
+      width: 70%;
+      border-radius: 6px;
+      border: none;
+      font-size: 14px;
+    }
+
+    button {
+      padding: 12px 25px;
+      background: #00c6ff;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      background: #0072ff;
+    }
+
+    #status {
+      margin-top: 20px;
+      font-size: 16px;
+      font-weight: bold;
+    }
+  </style>
 </head>
+
 <body>
 
-<h1>🚀 DevFlow Platform</h1>
-<p>Deploy your application in one click</p>
+  <div class="container">
+    <h1>DevFlow Platform</h1>
+    <p>Deploy your application in one click</p>
+    <p class="sub-text">
+      Integrated with Prometheus & Grafana for real-time monitoring
+    </p>
 
-<div class="form-container">
+    <label>Select Template</label><br>
+    <select id="template">
+      <option>Node.js API</option>
+      <option>Static Website</option>
+      <option>Background Worker</option>
+    </select><br>
 
-  <label>Choose Template:</label>
-  <select id="template">
-    <option value="nodejs">Node.js API</option>
-    <option value="static">Static Website</option>
-    <option value="worker">Background Worker</option>
-  </select>
+    <input type="text" id="repo" placeholder="GitHub Repository URL"><br>
+    <input type="text" id="appName" placeholder="Application Name"><br>
 
-  <label>GitHub Repository URL:</label>
-  <input id="repo" type="text" placeholder="https://github.com/user/repo">
+    <button id="deployBtn">Deploy</button>
 
-  <label>Application Name:</label>
-  <input id="appname" type="text" placeholder="my-app">
+    <p id="status"></p>
+  </div>
 
-  <button onclick="deploy()">🚀 Deploy</button>
-
-</div>
-
-<script src="script.js"></script>
+  <script src="script.js"></script>
 
 </body>
 </html>
