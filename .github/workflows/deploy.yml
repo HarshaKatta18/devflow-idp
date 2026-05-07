@@ -18,119 +18,121 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Debug Inputs
-        run: |
-          echo "Template: ${{ github.event.inputs.template }}"
-          echo "Repo: ${{ github.event.inputs.repo_url }}"
-          echo "App Name: ${{ github.event.inputs.app_name }}"
+      - name: Checkout (for workflow context only)
+        uses: actions/checkout@v3
 
       - name: Setup SSH Key
         run: |
           echo "${{ secrets.EC2_KEY }}" > key.pem
           chmod 400 key.pem
 
-      # 🚀 NODE.JS DEPLOYMENT
-      - name: Deploy Node App
-        if: ${{ github.event.inputs.template == 'nodejs' }}
+      - name: Deploy to EC2
         run: |
-          ssh -o StrictHostKeyChecking=no -i key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << EOF
-          set -e
+          ssh -o StrictHostKeyChecking=no -i key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
 
           REPO_URL="${{ github.event.inputs.repo_url }}"
           APP_NAME="${{ github.event.inputs.app_name }}"
+          TEMPLATE="${{ github.event.inputs.template }}"
 
-          echo "Deploying Node App: \$APP_NAME"
-
-          cd ~
-          rm -rf \$APP_NAME
-
-          git clone \$REPO_URL \$APP_NAME
-          cd \$APP_NAME
-
-          # Load Node
-          source ~/.bashrc
-          nvm use 16
-
-          npm install
-
-          # Kill only this app
-          pkill -f "node index.js" || true
-
-          nohup npm start > app.log 2>&1 &
-
-          # Configure Nginx
-          sudo rm -f /etc/nginx/conf.d/app.conf
-
-          echo "server {
-              listen 80;
-              server_name _;
-              location / {
-                  proxy_pass http://127.0.0.1:3000;
-              }
-          }" | sudo tee /etc/nginx/conf.d/app.conf
-
-          sudo systemctl restart nginx
-
-          echo "Node app deployed successfully!"
-          EOF
-
-      # 🌐 STATIC WEBSITE DEPLOYMENT
-      - name: Deploy Static Website
-        if: ${{ github.event.inputs.template == 'static' }}
-        run: |
-          ssh -o StrictHostKeyChecking=no -i key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << EOF
-          REPO_URL="${{ github.event.inputs.repo_url }}"
-          APP_NAME="${{ github.event.inputs.app_name }}"
+          echo "🚀 Starting deployment..."
+          echo "Template: $TEMPLATE"
+          echo "Repo: $REPO_URL"
+          echo "App: $APP_NAME"
 
           cd ~
-          rm -rf \$APP_NAME
 
-          git clone \$REPO_URL \$APP_NAME
+          echo "🧹 Cleaning old app..."
+          rm -rf $APP_NAME
 
-          # Copy static files
-          sudo rm -rf /usr/share/nginx/html/*
-          sudo cp -r \$APP_NAME/* /usr/share/nginx/html/
+          echo "📥 Cloning fresh repo..."
+          git clone $REPO_URL $APP_NAME
 
-          # 🔥 STOP NODE APP (important)
-          pkill node || true
+          if [ ! -d "$APP_NAME" ]; then
+            echo "❌ Clone failed!"
+            exit 1
+          fi
 
-          # 🔥 RESET NGINX TO STATIC
-          echo "server {
-              listen 80;
-              server_name _;
+          echo "📂 Repo contents:"
+          ls $APP_NAME
 
-              root /usr/share/nginx/html;
-              index index.html;
+          ########################################
+          # 🌐 STATIC WEBSITE
+          ########################################
+          if [ "$TEMPLATE" = "static" ]; then
 
-              location / {
-                  try_files \$uri \$uri/ =404;
-              }
-          }" | sudo tee /etc/nginx/conf.d/app.conf
+            echo "🌐 Deploying Static Website..."
 
-          sudo systemctl restart nginx
-          EOF
+            sudo rm -rf /usr/share/nginx/html/*
+            sudo cp -r $APP_NAME/* /usr/share/nginx/html/
+            sudo chmod -R 755 /usr/share/nginx/html
 
-      # ⚙️ BACKGROUND WORKER DEPLOYMENT
-      - name: Deploy Worker
-        if: ${{ github.event.inputs.template == 'worker' }}
-        run: |
-          ssh -o StrictHostKeyChecking=no -i key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << EOF
-          set -e
+            echo "⚙️ Configuring Nginx for STATIC..."
+            echo "server {
+                listen 80;
+                server_name _;
+                root /usr/share/nginx/html;
+                index index.html;
 
-          REPO_URL="${{ github.event.inputs.repo_url }}"
-          APP_NAME="${{ github.event.inputs.app_name }}"
+                location / {
+                    try_files \$uri \$uri/ =404;
+                }
+            }" | sudo tee /etc/nginx/conf.d/app.conf
 
-          echo "Deploying Worker: \$APP_NAME"
+            sudo systemctl restart nginx
 
-          cd ~
-          rm -rf \$APP_NAME
+          ########################################
+          # 🚀 NODE.JS API
+          ########################################
+          elif [ "$TEMPLATE" = "nodejs" ]; then
 
-          git clone \$REPO_URL \$APP_NAME
-          cd \$APP_NAME
+            echo "🚀 Deploying Node.js App..."
 
-          pkill -f "worker.js" || true
+            cd $APP_NAME
 
-          nohup node worker.js > worker.log 2>&1 &
+            source ~/.bashrc
+            nvm use 16
 
-          echo "Worker started successfully!"
+            npm install
+
+            echo "🛑 Killing old Node processes..."
+            pkill node || true
+
+            echo "▶️ Starting Node app..."
+            if [ -f package.json ]; then
+              nohup npm start > app.log 2>&1 &
+            else
+              nohup node index.js > app.log 2>&1 &
+            fi
+
+            echo "⚙️ Configuring Nginx for NODE..."
+            echo "server {
+                listen 80;
+                server_name _;
+
+                location / {
+                    proxy_pass http://127.0.0.1:3000;
+                }
+            }" | sudo tee /etc/nginx/conf.d/app.conf
+
+            sudo systemctl restart nginx
+
+          ########################################
+          # ⚙️ BACKGROUND WORKER
+          ########################################
+          elif [ "$TEMPLATE" = "worker" ]; then
+
+            echo "⚙️ Deploying Worker..."
+
+            cd $APP_NAME
+
+            pkill -f worker.js || true
+            nohup node worker.js > worker.log 2>&1 &
+
+          else
+            echo "❌ Unknown template"
+            exit 1
+          fi
+
+          echo "✅ Deployment Completed!"
+
           EOF
